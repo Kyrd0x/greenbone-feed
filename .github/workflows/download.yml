@@ -5,7 +5,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: '0 3 * * 1'  # Every Monday at 03:00 UTC
+    - cron: '0 3 * * *'  # Every day at 03:00 UTC
 
 jobs:
   download-and-release:
@@ -51,7 +51,31 @@ jobs:
         id: vars
         run: echo "tag=${{ steps.get-latest.outputs.latest }}-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
+      - name: Compute current ZIP hash
+        id: hash
+        run: |
+          HASH=$(sha256sum greenbone-feed.zip | awk '{print $1}')
+          echo "Current hash: $HASH"
+          echo "hash=$HASH" >> $GITHUB_OUTPUT
+
+      - name: Compare with latest release
+        id: compare
+        run: |
+          gh release download --pattern "greenbone-feed.zip" -D old-release || echo "No previous release"
+          
+          if [ -f old-release/greenbone-feed.zip ]; then
+            OLD_HASH=$(sha256sum old-release/greenbone-feed.zip | awk '{print $1}')
+            echo "Previous hash: $OLD_HASH"
+            echo "old_hash=$OLD_HASH" >> $GITHUB_OUTPUT
+          else
+            echo "No old hash"
+            echo "old_hash=none" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create GitHub Release
+        if: steps.compare.outputs.old_hash != steps.hash.outputs.hash
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.vars.outputs.tag }}
