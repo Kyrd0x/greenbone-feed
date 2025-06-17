@@ -2,7 +2,7 @@
 
 # Config
 REPO="Kyrd0x/greenbone-feed"
-LOCAL_HASH_FILE="/var/lib/openvas/feed.sha256"
+LOCAL_DATE_FILE="/var/lib/openvas/feed.date"
 TMP_JSON="/tmp/latest-release.json"
 TMP_ZIP="/tmp/greenbone-feed.zip"
 TMP_DIR="/tmp/greenbone-feed"
@@ -10,26 +10,27 @@ TMP_DIR="/tmp/greenbone-feed"
 # 1. Get latest release metadata
 curl -s "https://api.github.com/repos/$REPO/releases/latest" -o "$TMP_JSON"
 
-# 2. Extract ZIP hash from release body
-REMOTE_HASH=$(jq -r '.assets[] | select(.name=="greenbone-feed.zip") | .digest' "$TMP_JSON" | sed 's/^sha256://')
+# 2. Extract release date (YYYY-MM-DD) from tag or name
+RELEASE_DATE=$(jq -r '.tag_name' "$TMP_JSON" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
 
-if [ -z "$REMOTE_HASH" ]; then
-  echo "❌ No SHA256 hash found for greenbone-feed.zip"
+if [ -z "$RELEASE_DATE" ]; then
+  echo "❌ Could not extract release date from tag"
   exit 1
 fi
 
-# 3. Compare with local hash
-LOCAL_HASH=$(cat "$LOCAL_HASH_FILE" 2>/dev/null || echo "")
+# 3. Read local last synced date
+LOCAL_DATE=$(cat "$LOCAL_DATE_FILE" 2>/dev/null || echo "")
 
-if [ "$REMOTE_HASH" = "$LOCAL_HASH" ]; then
-  echo "✅ Feed is up to date"
+if [ "$RELEASE_DATE" = "$LOCAL_DATE" ]; then
+  echo "✅ Feed is up to date (Last synced: $LOCAL_DATE)"
   exit 0
 fi
 
-echo "⬇️ New feed detected. Downloading..."
+echo "⬇️ New feed detected (Release date: $RELEASE_DATE). Downloading..."
 
 # 4. Download and extract ZIP
-curl -L -o "$TMP_ZIP" "https://github.com/$REPO/releases/latest/download/greenbone-feed.zip"
+ZIP_URL=$(jq -r '.assets[] | select(.name=="greenbone-feed.zip") | .browser_download_url' "$TMP_JSON")
+curl -L -o "$TMP_ZIP" "$ZIP_URL"
 rm -rf "$TMP_DIR"
 unzip -q "$TMP_ZIP" -d "$TMP_DIR"
 
@@ -40,7 +41,7 @@ echo "⚙️ Installing new feed files..."
 sudo rm -rf /var/lib/notus/notus
 sudo cp -r "$TMP_DIR/vulnerability-feed/vt-data/notus" /var/lib/notus
 
-# OpenVAS NASL plugins
+# NASL plugins
 sudo rm -rf /var/lib/openvas/plugins/*
 sudo cp -r "$TMP_DIR/vulnerability-feed/vt-data/nasl/"* /var/lib/openvas/plugins/
 
@@ -51,11 +52,11 @@ sudo cp -r "$TMP_DIR/vulnerability-feed/cert-data/"* /var/lib/gvm/cert-data/
 # Data-feed for gvmd
 sudo cp -r "$TMP_DIR/data-feed/"* /var/lib/gvm/data-objects/gvmd/
 
-# 6. Save new hash
-echo "$REMOTE_HASH" | sudo tee "$LOCAL_HASH_FILE" > /dev/null
+# 6. Save new date
+echo "$RELEASE_DATE" | sudo tee "$LOCAL_DATE_FILE" > /dev/null
 
 # 7. Cleanup
 rm -f "$TMP_ZIP" "$TMP_JSON"
 rm -rf "$TMP_DIR"
 
-echo "✅ Feed updated successfully."
+echo "✅ Feed updated to $RELEASE_DATE"
