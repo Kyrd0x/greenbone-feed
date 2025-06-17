@@ -21,6 +21,6 @@ This repo automatically downloads the latest Greenbone Community Feed and upload
 
 ## Download
 
-Go to the [Releases](https://github.com/YOUR_USERNAME/YOUR_REPO/releases) to get the latest feed.
+Go to the [Releases](https://github.com/Kyrd0x/greenbone-feed/releases) to get the latest feed.
 
 ---
