@@ -10,6 +10,7 @@ on:
 jobs:
   download-and-release:
     runs-on: ubuntu-latest
+    continue-on-error: false
 
     steps:
       - name: Checkout repo
@@ -40,6 +41,22 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "mod_day=$MOD_DATE" >> $GITHUB_OUTPUT
 
+      - name: Get latest release tag
+        id: latest_release
+        run: |
+          RELEASE_DATE=$(gh release list --limit 1 | awk '{print $1}' | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
+          echo "Latest release date: $RELEASE_DATE"
+          echo "release_day=$RELEASE_DATE" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if feed update is needed
+        if: ${{ steps.get-latest.outputs.mod_day == steps.latest_release.outputs.release_day }}
+        run: |
+          echo "✅ No new feed. Greenbone last update is same as latest release (${{
+            steps.get-latest.outputs.mod_day }})"
+          exit 0
+
       - name: Download Greenbone Feed
         run: |
           VERSION=${{ steps.get-latest.outputs.version }}
@@ -58,23 +75,12 @@ jobs:
       - name: Zip the feed
         run: zip -r greenbone-feed.zip vulnerability-feed/ data-feed/
 
-
-      - name: Get latest release tag
-        id: latest_release
-        run: |
-          RELEASE_DATE=$(gh release list --limit 1 | awk '{print $1}' | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
-          echo "Latest release date: $RELEASE_DATE"
-          echo "release_day=$RELEASE_DATE" >> $GITHUB_OUTPUT
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Generate tag
         id: vars
         run: |
           echo "tag=${{ steps.get-latest.outputs.version }}-${{ steps.get-latest.outputs.mod_day }}" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
-        if: steps.get-latest.outputs.mod_day != steps.latest_release.outputs.release_day
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.vars.outputs.tag }}
