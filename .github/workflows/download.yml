@@ -1,9 +1,9 @@
-name: Download and Release GVM Feed
+name: Download and Release Latest Greenbone Feed
 
 on:
   push:
     branches:
-      - main  # or replace with your default branch (e.g., 'master')
+      - main
 
 jobs:
   download-and-release:
@@ -13,14 +13,36 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install rsync and zip
+      - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y rsync zip
 
-      - name: Download GVM feed
+      - name: Determine latest version
+        id: get-latest
         run: |
-          mkdir gvm-feed
-          rsync -av rsync://feed.community.greenbone.net/community/vulnerability-feed/ gvm-feed/
+          # Get version directories from vulnerability-feed
+          VERSIONS=$(rsync --list-only rsync://feed.community.greenbone.net/community/vulnerability-feed/ | awk '{print $NF}' | grep -E '^[0-9]+\.[0-9]+/?$' | sed 's:/$::')
+          LATEST=$(echo "$VERSIONS" | sort -V | tail -n1)
+          echo "Latest version: $LATEST"
+          echo "latest=$LATEST" >> $GITHUB_OUTPUT
+
+      - name: Download Greenbone Feed
+        run: |
+          VERSION=${{ steps.get-latest.outputs.latest }}
+          mkdir -p vulnerability-feed/scap-data
+          mkdir -p vulnerability-feed/cert-data
+          mkdir -p vulnerability-feed/vt-data/notus
+          mkdir -p vulnerability-feed/vt-data/nasl
+          mkdir -p data-feed
+
+          rsync -av rsync://feed.community.greenbone.net/community/vulnerability-feed/$VERSION/scap-data/ vulnerability-feed/scap-data/
+          rsync -av rsync://feed.community.greenbone.net/community/vulnerability-feed/$VERSION/cert-data/ vulnerability-feed/cert-data/
+          rsync -av rsync://feed.community.greenbone.net/community/vulnerability-feed/$VERSION/vt-data/notus/ vulnerability-feed/vt-data/notus/
+          rsync -av rsync://feed.community.greenbone.net/community/vulnerability-feed/$VERSION/vt-data/nasl/ vulnerability-feed/vt-data/nasl/
+          rsync -av rsync://feed.community.greenbone.net/community/data-feed/$VERSION/ data-feed/
 
       - name: Zip the feed
-        run: |
-          zip -r gvm-feed.zip gvm-feed/
+        run: zip -r greenbone-feed.zip vulnerability-feed/ data-feed/
+
+      - name: Generate tag
+        id: vars
+        run: echo "tag=${{ steps.get-latest.outputs.latest }}-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
