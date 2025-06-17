@@ -22,12 +22,17 @@ jobs:
         id: get-latest
         run: |
           FEED_LIST=$(rsync --list-only rsync://feed.community.greenbone.net/community/vulnerability-feed/)
-          FEED_INFO=$(echo "$FEED_LIST" | grep -E '^[dlrwx-]+\s+[0-9,]+\s+[0-9]{4}/[0-9]{2}/[0-9]{2}\s+[0-9]{2}:[0-9]{2}:[0-9]{2}\s+[0-9]+\.[0-9]+$')
+
+          # Get only lines with version folders (e.g., 24.10, 22.04, etc.)
+          FEED_INFO=$(echo "$FEED_LIST" | grep -E '^[dlrwx-]+\s+[0-9,]+\s+[0-9]{4}/[0-9]{2}/[0-9]{2}')
+
+          # Extract last modified date and version name from each line
+          # Using flexible awk fields from the end of line
           LATEST_LINE=$(echo "$FEED_INFO" | sort -k6,7 | tail -n1)
           echo "LATEST_LINE: $LATEST_LINE"
 
           VERSION=$(echo "$LATEST_LINE" | awk '{print $NF}')
-          MOD_DATE=$(echo "$LATEST_LINE" | awk '{print $6}' | tr '/' '-')  # e.g., 2025-06-17
+          MOD_DATE=$(echo "$LATEST_LINE" | awk '{print $(NF-2)}' | tr '/' '-')  # YYYY-MM-DD
 
           echo "Greenbone version: $VERSION"
           echo "Greenbone mod date: $MOD_DATE"
