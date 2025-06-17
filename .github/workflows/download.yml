@@ -57,9 +57,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check if feed update is needed
-        if: ${{ steps.get-latest.outputs.mod_day == steps.latest_release.outputs.release_day }}
+        if: ${{ steps.latest_release.outputs.release_day != 'none' && steps.get-latest.outputs.mod_day == steps.latest_release.outputs.release_day }}
         run: |
-          echo "✅ No new feed. Greenbone last update is same as latest release (${{
+          echo "✅ Feed already released for today (${{
             steps.get-latest.outputs.mod_day }})"
           exit 0
 
