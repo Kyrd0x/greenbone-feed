@@ -1,0 +1,28 @@
+name: Download and Release GVM Feed
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag"
+        required: true
+
+jobs:
+  download-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install rsync and zip
+        run: sudo apt-get update && sudo apt-get install -y rsync zip
+
+      - name: Download GVM feed
+        run: |
+          mkdir gvm-feed
+          rsync -av rsync://feed.community.greenbone.net/community/vulnerability-feed/ gvm-feed/
+
+      - name: Zip the feed
+        run: |
+          zip -r gvm-feed.zip gvm-feed/
