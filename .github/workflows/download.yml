@@ -46,3 +46,12 @@ jobs:
       - name: Generate tag
         id: vars
         run: echo "tag=${{ steps.get-latest.outputs.latest }}-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: Greenbone Feed ${{ steps.vars.outputs.tag }}
+          files: greenbone-feed.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
