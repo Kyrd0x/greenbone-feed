@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y rsync zip
+        run: sudo apt-get update && sudo apt-get install -y rsync zip jq
 
       - name: Determine latest version and mod date
         id: get-latest
@@ -41,21 +41,22 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "mod_day=$MOD_DATE" >> $GITHUB_OUTPUT
 
-      - name: Get latest release tag
+      - name: Get latest release date from GitHub API
         id: latest_release
         run: |
-          TAG=$(gh release list --limit 1 | awk '{print $1}')
-          echo "TAG: $TAG"
-          if [[ "$TAG" =~ ([0-9]{4}-[0-9]{2}-[0-9]{2}) ]]; then
-            RELEASE_DATE="${BASH_REMATCH[1]}"
+          TMP_JSON="/tmp/latest-release.json"
+
+          curl -s "https://api.github.com/repos/Kyrd0x/greenbone-feed/releases/latest" -o "$TMP_JSON"
+
+          RELEASE_DATE=$(jq -r '.tag_name' "$TMP_JSON" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
+
+          if [ -n "$RELEASE_DATE" ]; then
+            echo "✅ Latest release tag date: $RELEASE_DATE"
             echo "release_day=$RELEASE_DATE" >> $GITHUB_OUTPUT
-            echo "Latest release date: $RELEASE_DATE"
           else
-            echo "No valid release date found — assuming first run"
+            echo "⚠️ No valid date found in tag — assuming first run"
             echo "release_day=none" >> $GITHUB_OUTPUT
           fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check if feed update is needed
         if: ${{ steps.latest_release.outputs.release_day != 'none' && steps.get-latest.outputs.mod_day == steps.latest_release.outputs.release_day }}
