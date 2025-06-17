@@ -1,0 +1,48 @@
+name: Release Greenbone Feed
+
+on:
+  repository_dispatch:
+    types: [greenbone-release-request]
+
+jobs:
+  download-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y rsync zip
+
+      - name: Download Greenbone Feed
+        run: |
+          VERSION=${{ github.event.client_payload.version }}
+          mkdir -p vulnerability-feed/scap-data
+          mkdir -p vulnerability-feed/cert-data
+          mkdir -p vulnerability-feed/vt-data/notus
+          mkdir -p vulnerability-feed/vt-data/nasl
+          mkdir -p data-feed
+
+          rsync -av rsync://feed.community.greenbone.net/community/vulnerability-feed/$VERSION/scap-data/ vulnerability-feed/scap-data/
+          rsync -av rsync://feed.community.greenbone.net/community/vulnerability-feed/$VERSION/cert-data/ vulnerability-feed/cert-data/
+          rsync -av rsync://feed.community.greenbone.net/community/vulnerability-feed/$VERSION/vt-data/notus/ vulnerability-feed/vt-data/notus/
+          rsync -av rsync://feed.community.greenbone.net/community/vulnerability-feed/$VERSION/vt-data/nasl/ vulnerability-feed/vt-data/nasl/
+          rsync -av rsync://feed.community.greenbone.net/community/data-feed/$VERSION/ data-feed/
+
+      - name: Zip the feed
+        run: zip -r greenbone-feed.zip vulnerability-feed/ data-feed/
+
+      - name: Generate tag
+        id: vars
+        run: |
+          echo "tag=${{ steps.get-latest.outputs.version }}-${{ steps.get-latest.outputs.mod_day }}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.client_payload.tag }}
+          name: Greenbone Feed ${{ github.event.client_payload.mod_day }}
+          files: greenbone-feed.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

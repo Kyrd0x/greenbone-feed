@@ -1,99 +1,99 @@
-name: Download and Release Latest Greenbone Feed
+# name: Download and Release Latest Greenbone Feed
 
-on:
-  push:
-    branches:
-      - main
-  schedule:
-    - cron: '0 3 * * *'  # Every day at 03:00 UTC
+# on:
+#   push:
+#     branches:
+#       - main
+#   schedule:
+#     - cron: '0 3 * * *'  # Every day at 03:00 UTC
 
-jobs:
-  download-and-release:
-    runs-on: ubuntu-latest
-    continue-on-error: false
+# jobs:
+#   download-and-release:
+#     runs-on: ubuntu-latest
+#     continue-on-error: false
 
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout repo
+#         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y rsync zip jq
+#       - name: Install dependencies
+#         run: sudo apt-get update && sudo apt-get install -y rsync zip jq
 
-      - name: Determine latest version and mod date
-        id: get-latest
-        run: |
-          FEED_LIST=$(rsync --list-only rsync://feed.community.greenbone.net/community/vulnerability-feed/)
+#       - name: Determine latest version and mod date
+#         id: get-latest
+#         run: |
+#           FEED_LIST=$(rsync --list-only rsync://feed.community.greenbone.net/community/vulnerability-feed/)
 
-          # Get only lines with version folders (e.g., 24.10, 22.04, etc.)
-          FEED_INFO=$(echo "$FEED_LIST" | grep -E '^[dlrwx-]+\s+[0-9,]+\s+[0-9]{4}/[0-9]{2}/[0-9]{2}')
+#           # Get only lines with version folders (e.g., 24.10, 22.04, etc.)
+#           FEED_INFO=$(echo "$FEED_LIST" | grep -E '^[dlrwx-]+\s+[0-9,]+\s+[0-9]{4}/[0-9]{2}/[0-9]{2}')
 
-          # Extract last modified date and version name from each line
-          # Using flexible awk fields from the end of line
-          LATEST_LINE=$(echo "$FEED_INFO" | sort -k6,7 | tail -n1)
-          echo "LATEST_LINE: $LATEST_LINE"
+#           # Extract last modified date and version name from each line
+#           # Using flexible awk fields from the end of line
+#           LATEST_LINE=$(echo "$FEED_INFO" | sort -k6,7 | tail -n1)
+#           echo "LATEST_LINE: $LATEST_LINE"
 
-          VERSION=$(echo "$LATEST_LINE" | awk '{print $NF}')
-          MOD_DATE=$(echo "$LATEST_LINE" | awk '{print $(NF-2)}' | tr '/' '-')  # YYYY-MM-DD
+#           VERSION=$(echo "$LATEST_LINE" | awk '{print $NF}')
+#           MOD_DATE=$(echo "$LATEST_LINE" | awk '{print $(NF-2)}' | tr '/' '-')  # YYYY-MM-DD
 
-          echo "Greenbone version: $VERSION"
-          echo "Greenbone mod date: $MOD_DATE"
-          echo "Tag: $VERSION-$MOD_DATE"
+#           echo "Greenbone version: $VERSION"
+#           echo "Greenbone mod date: $MOD_DATE"
+#           echo "Tag: $VERSION-$MOD_DATE"
 
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "mod_day=$MOD_DATE" >> $GITHUB_OUTPUT
-          echo "tag=$VERSION-$MOD_DATE" >> $GITHUB_OUTPUT
+#           echo "version=$VERSION" >> $GITHUB_OUTPUT
+#           echo "mod_day=$MOD_DATE" >> $GITHUB_OUTPUT
+#           echo "tag=$VERSION-$MOD_DATE" >> $GITHUB_OUTPUT
 
-      - name: Get latest release tag
-        id: latest_release
-        run: |
-          TAG=$(gh release list --limit 1 | awk '{print $3}')
-          echo "TAG: $TAG"
-          if [[ "$TAG" =~ ([0-9]{4}-[0-9]{2}-[0-9]{2}) ]]; then
-            RELEASE_DATE="${BASH_REMATCH[1]}"
-            echo "release_day=$RELEASE_DATE" >> $GITHUB_OUTPUT
-            echo "Latest release date: $RELEASE_DATE"
-          else
-            echo "No valid release date found — assuming first run"
-            echo "release_day=none" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#       - name: Get latest release tag
+#         id: latest_release
+#         run: |
+#           TAG=$(gh release list --limit 1 | awk '{print $3}')
+#           echo "TAG: $TAG"
+#           if [[ "$TAG" =~ ([0-9]{4}-[0-9]{2}-[0-9]{2}) ]]; then
+#             RELEASE_DATE="${BASH_REMATCH[1]}"
+#             echo "release_day=$RELEASE_DATE" >> $GITHUB_OUTPUT
+#             echo "Latest release date: $RELEASE_DATE"
+#           else
+#             echo "No valid release date found — assuming first run"
+#             echo "release_day=none" >> $GITHUB_OUTPUT
+#           fi
+#         env:
+#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check if feed update is needed
-        if: ${{ steps.latest_release.outputs.release_day != 'none' && steps.get-latest.outputs.mod_day == steps.latest_release.outputs.release_day }}
-        run: |
-          echo "✅ Feed already released for today (${{
-            steps.get-latest.outputs.mod_day }})"
-          exit 0
+#       - name: Check if feed update is needed
+#         if: ${{ steps.latest_release.outputs.release_day != 'none' && steps.get-latest.outputs.mod_day == steps.latest_release.outputs.release_day }}
+#         run: |
+#           echo "✅ Feed already released for today (${{
+#             steps.get-latest.outputs.mod_day }})"
+#           exit 0
 
-      - name: Download Greenbone Feed
-        run: |
-          VERSION=${{ steps.get-latest.outputs.version }}
-          mkdir -p vulnerability-feed/scap-data
-          mkdir -p vulnerability-feed/cert-data
-          mkdir -p vulnerability-feed/vt-data/notus
-          mkdir -p vulnerability-feed/vt-data/nasl
-          mkdir -p data-feed
+#       - name: Download Greenbone Feed
+#         run: |
+#           VERSION=${{ steps.get-latest.outputs.version }}
+#           mkdir -p vulnerability-feed/scap-data
+#           mkdir -p vulnerability-feed/cert-data
+#           mkdir -p vulnerability-feed/vt-data/notus
+#           mkdir -p vulnerability-feed/vt-data/nasl
+#           mkdir -p data-feed
 
-          rsync -av rsync://feed.community.greenbone.net/community/vulnerability-feed/$VERSION/scap-data/ vulnerability-feed/scap-data/
-          rsync -av rsync://feed.community.greenbone.net/community/vulnerability-feed/$VERSION/cert-data/ vulnerability-feed/cert-data/
-          rsync -av rsync://feed.community.greenbone.net/community/vulnerability-feed/$VERSION/vt-data/notus/ vulnerability-feed/vt-data/notus/
-          rsync -av rsync://feed.community.greenbone.net/community/vulnerability-feed/$VERSION/vt-data/nasl/ vulnerability-feed/vt-data/nasl/
-          rsync -av rsync://feed.community.greenbone.net/community/data-feed/$VERSION/ data-feed/
+#           rsync -av rsync://feed.community.greenbone.net/community/vulnerability-feed/$VERSION/scap-data/ vulnerability-feed/scap-data/
+#           rsync -av rsync://feed.community.greenbone.net/community/vulnerability-feed/$VERSION/cert-data/ vulnerability-feed/cert-data/
+#           rsync -av rsync://feed.community.greenbone.net/community/vulnerability-feed/$VERSION/vt-data/notus/ vulnerability-feed/vt-data/notus/
+#           rsync -av rsync://feed.community.greenbone.net/community/vulnerability-feed/$VERSION/vt-data/nasl/ vulnerability-feed/vt-data/nasl/
+#           rsync -av rsync://feed.community.greenbone.net/community/data-feed/$VERSION/ data-feed/
 
-      - name: Zip the feed
-        run: zip -r greenbone-feed.zip vulnerability-feed/ data-feed/
+#       - name: Zip the feed
+#         run: zip -r greenbone-feed.zip vulnerability-feed/ data-feed/
 
-      - name: Generate tag
-        id: vars
-        run: |
-          echo "tag=${{ steps.get-latest.outputs.version }}-${{ steps.get-latest.outputs.mod_day }}" >> $GITHUB_OUTPUT
+#       - name: Generate tag
+#         id: vars
+#         run: |
+#           echo "tag=${{ steps.get-latest.outputs.version }}-${{ steps.get-latest.outputs.mod_day }}" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.vars.outputs.tag }}
-          name: Greenbone Feed ${{ steps.get-latest.outputs.mod_day }}
-          files: greenbone-feed.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#       - name: Create GitHub Release
+#         uses: softprops/action-gh-release@v2
+#         with:
+#           tag_name: ${{ steps.vars.outputs.tag }}
+#           name: Greenbone Feed ${{ steps.get-latest.outputs.mod_day }}
+#           files: greenbone-feed.zip
+#         env:
+#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
