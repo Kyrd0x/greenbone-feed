@@ -1,11 +1,9 @@
 name: Download and Release GVM Feed
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Release tag"
-        required: true
+  push:
+    branches:
+      - main  # or replace with your default branch (e.g., 'master')
 
 jobs:
   download-and-release:
