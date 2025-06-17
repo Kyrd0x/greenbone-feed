@@ -2,25 +2,32 @@
 
 ![Greenbone logo](https://www.greenbone.net/wp-content/uploads/Gb_New-logo_horizontal_head.png)
 
-This repo automatically downloads the latest Greenbone Community Feed and uploads it as a ZIP file to GitHub Releases.
-
-## What's inside
-
-- scap-data
-- cert-data
-- vt-data (notus + nasl)
-- data-feed
-
-## How it works
-
-- Runs every Monday at 03:00 UTC and on every push to `main`
-- Detects the latest version (like `24.10`)
-- Downloads the feed folders
-- Zips them as `greenbone-feed.zip`
-- Publishes a GitHub Release with the ZIP
-
-## Download
-
-Go to the [Releases](https://github.com/Kyrd0x/greenbone-feed/releases) to get the latest feed.
+This repository publishes a daily ZIP snapshot of the [Greenbone Community Feed](https://www.greenbone.net/en/community-edition/), intended for OpenVAS/GVM scanners that **cannot use `rsync` directly** due to firewall or offline constraints.
 
 ---
+
+## 📦 What's Included in Each Release
+
+- `scap-data` — SCAP Security Guide data
+- `cert-data` — CERT advisories
+- `vt-data/notus` — Notus-based tests
+- `vt-data/nasl` — NASL-based tests
+- `data-feed` — GVM metadata
+
+Everything is packaged as:  
+**`greenbone-feed.zip`**
+
+---
+
+## 📥 How to Set Up Automatic Feed Sync on a Scanner
+
+This setup is for scanner hosts with internet access but **no rsync support**, relying on GitHub HTTPS instead.
+
+### 1. Install Dependencies
+
+Make sure these are available:
+
+```bash
+sudo apt update
+sudo apt install -y curl jq unzip
+```
