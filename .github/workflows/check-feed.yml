@@ -28,10 +28,12 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "mod_day=$MOD_DATE" >> $GITHUB_OUTPUT
 
+
+
       - name: Get latest release tag
         id: latest_release
         run: |
-          TAG=$(gh release list --limit 1 | awk '{print $3}')
+          TAG=$(gh release list --limit 1 --repo Kyrd0x/greenbone-feed | awk '{print $3}')
           echo "TAG: $TAG"
           if [[ "$TAG" =~ ([0-9]{4}-[0-9]{2}-[0-9]{2}) ]]; then
             RELEASE_DATE="${BASH_REMATCH[1]}"
