@@ -20,6 +20,8 @@ jobs:
         id: get-latest
         run: |
           # Get version directories from vulnerability-feed
+          DEBUG=$(rsync --list-only rsync://feed.community.greenbone.net/community/vulnerability-feed/)
+          echo "DEBUG: $DEBUG"
           VERSIONS=$(rsync --list-only rsync://feed.community.greenbone.net/community/vulnerability-feed/ | awk '{print $NF}' | grep -E '^[0-9]+\.[0-9]+/?$' | sed 's:/$::')
           LATEST=$(echo "$VERSIONS" | sort -V | tail -n1)
           echo "Latest version: $LATEST"
