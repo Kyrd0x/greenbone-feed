@@ -25,6 +25,7 @@ jobs:
           VERSION=$(echo "$LATEST_LINE" | awk '{print $NF}')
           MOD_DATE=$(echo "$LATEST_LINE" | awk '{print $(NF-2)}' | tr '/' '-')
 
+          echo $FEED_LIST
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "mod_day=$MOD_DATE" >> $GITHUB_OUTPUT
 
